@@ -55,6 +55,7 @@ class EventCounter:
         self._error_cats: list[str] = errors
         self._error_status: bool = False
         self._totals = totals
+        self._col_width: int = 40
 
         # formatters
         self._format_int: FuncTypeFormatter = self._default_int_formatter
@@ -81,11 +82,11 @@ class EventCounter:
 
     def _default_int_formatter(self, category: str) -> str:
         assert category is not None, "param 'category' cannot be None"
-        return f"{category:40}: {self.get_value(category)}"
+        return f"{category:{self._col_width}}: {self.get_value(category)}"
 
     def _default_float_formatter(self, category: str) -> str:
         assert category is not None, "param 'category' cannot be None"
-        return f"{category:40}: {self.get_value(category):.2f}"
+        return f"{category:{self._col_width}}: {self.get_value(category):.2f}"
 
     def log(self, category: str, count: int = 1) -> None:
         assert category is not None, "category cannot be None"
@@ -169,8 +170,18 @@ class EventCounter:
     def get_header(self) -> str:
         return f"{self.name}" + (": ERROR occurred" if self.get_error_status() else "")
 
+    def _calc_col_width(self) -> None:
+        """
+        Set category column widht based on the longest column
+        """
+        longest: int = 0
+        for cat in self._log.keys():
+            longest = max(longest, len(cat))
+        self._col_width = longest + 3
+
     def print(self, do_print: bool = True, clean: bool = False) -> Optional[str]:
         try:
+            self._calc_col_width()
             if do_print:
                 message(self.get_header())
                 for cat in sorted(self._log):
