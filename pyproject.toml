@@ -1,6 +1,6 @@
 [project]
 name = "eventcounter"
-version = "0.4.1"
+version = "0.4.2"
 authors = [{ name = "Jylpah", email = "jylpah@gmail.com" }]
 description = "Utility to count events and merge event counts from other EventCounters"
 readme = "README.md"
