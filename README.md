@@ -26,6 +26,12 @@ for _ in range(100):
 
 counter.print()
 ```
+#### Output
+
+```bash
+even number   : 53
+odd number    : 47
+```
 
 # Example
 
