@@ -11,6 +11,17 @@ name: Upload Python Package
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: "Python version to test"
+        required: false
+        default: "3.12"
+        type: choice
+        options:
+          - "3.11"
+          - "3.12"
+          - "3.13"
 
 permissions:
   contents: read
