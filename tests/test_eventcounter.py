@@ -80,7 +80,7 @@ def test_5_error_categories(test_source_categories_0: list[str]) -> None:
     # assert ec.add_error_categories(cats[:2]), "Errors not logged"
 
 
-def test_6_categories(test_source_categories_0: list[str]) -> None:
+def test_6_categories(test_source_categories_0: list[str], capsys) -> None:
     """Test categories methods"""
     cats: list[str] = test_source_categories_0
     ec: EventCounter = mk_eventcounter_linear("Test", cats)
@@ -92,3 +92,8 @@ def test_6_categories(test_source_categories_0: list[str]) -> None:
     )
     assert isinstance(ec.values, dict), f"Incorrect type returned: {type(ec.values)}"
     assert isinstance(ec.print(do_print=False), str), "Incorrect type returned"
+    ec.print()
+    captured = capsys.readouterr()
+    assert len(captured.out.splitlines()) == 4, (
+        f"Incorrect output: {len(captured.out.splitlines())}"
+    )

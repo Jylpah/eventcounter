@@ -5,7 +5,7 @@
 ## -----------------------------------------------------------
 
 from collections import defaultdict
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Callable
 from asyncio import gather, Task
 from deprecated import deprecated
 from multilevellogger import getMultiLevelLogger, MultiLevelLogger
@@ -46,6 +46,7 @@ class EventCounter:
         errors: set[str] = set(),
         separator: str = ": ",
         format_spec: str = "{category:<{col_width}}{separator}{value}",
+        print_func: Callable[[str], None] = print,
     ):
         assert name is not None, "param 'name' cannot be None"
         # assert categories is not None, "param 'categories' cannot be None"
@@ -59,6 +60,7 @@ class EventCounter:
         self._totals = totals
         self._separator: str = separator
         self._format_spec: str = format_spec
+        self._print_func: Callable[[str], None] = print_func
 
     def log(self, category: str, count: int = 1) -> int:
         assert category is not None, "category cannot be None"
@@ -203,7 +205,7 @@ class EventCounter:
                 for cat in sorted(self._log):
                     if clean and self.get(cat) == 0:
                         continue
-                    message(self._get_str(cat, width))
+                    self._print_func(self._get_str(cat, width))
                 return None
             else:
                 ret = self.get_header()
