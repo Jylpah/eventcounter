@@ -5,19 +5,20 @@
 ## -----------------------------------------------------------
 
 from collections import defaultdict
-from typing import Callable, Optional
+from typing import Optional, Iterable
 from asyncio import gather, Task
-import logging
+from deprecated import deprecated
+from multilevellogger import getMultiLevelLogger, MultiLevelLogger
 
-logger = logging.getLogger(__name__)
+logger: MultiLevelLogger = getMultiLevelLogger(__name__)
 
 debug = logger.debug
-message = logger.warning
-verbose = logger.info
+message = logger.message
+verbose = logger.verbose
 error = logger.error
 
-FuncTypeFormatter = Callable[[str], str]
-FuncTypeFormatterParam = Optional[FuncTypeFormatter]
+# FuncTypeFormatter = Callable[[str], str]
+# FuncTypeFormatterParam = Optional[FuncTypeFormatter]
 
 
 class EventCounter:
@@ -41,109 +42,118 @@ class EventCounter:
         self,
         name: str = "",
         totals: Optional[str] = None,
-        categories: list[str] = list(),
-        errors: list[str] = list(),
-        int_format: FuncTypeFormatterParam = None,
-        float_format: FuncTypeFormatterParam = None,
+        # categories: set[str] = set(),
+        errors: set[str] = set(),
+        separator: str = ": ",
+        format_spec: str = "{category:<{col_width}}{separator}{value}",
     ):
         assert name is not None, "param 'name' cannot be None"
-        assert categories is not None, "param 'categories' cannot be None"
+        # assert categories is not None, "param 'categories' cannot be None"
         assert errors is not None, "param 'errors' cannot be None"
 
         self.name: str = name
-        self._log: defaultdict[str, int] = defaultdict(self._def_value_zero)
-        self._error_cats: list[str] = errors
-        self._error_status: bool = False
+        self._log: defaultdict[str, int] = defaultdict(
+            int
+        )  # returns 0 if key not found
+        self._errors: set[str] = errors
         self._totals = totals
-        self._col_width: int = 40
+        self._separator: str = separator
+        self._format_spec: str = format_spec
 
-        # formatters
-        self._format_int: FuncTypeFormatter = self._default_int_formatter
-        self._format_float: FuncTypeFormatter = self._default_float_formatter
-        if int_format is not None:
-            self._format_int = int_format
-        if float_format is not None:
-            self._format_float = float_format
-
-        # init categories
-        for cat in categories:
-            self.log(cat, 0)
-
-    @classmethod
-    def _def_value_zero(cls) -> int:
-        return 0
-
-    def add_error_categories(self, errors: list[str] = list()) -> bool:
-        """Add error categories and return if an error has been logged"""
-        self._error_cats += errors
-        if self.sum(self._error_cats) > 0:
-            self._error_status = True
-        return self._error_status
-
-    def _default_int_formatter(self, category: str) -> str:
-        assert category is not None, "param 'category' cannot be None"
-        return f"{category:{self._col_width}}: {self.get_value(category)}"
-
-    def _default_float_formatter(self, category: str) -> str:
-        assert category is not None, "param 'category' cannot be None"
-        return f"{category:{self._col_width}}: {self.get_value(category):.2f}"
-
-    def log(self, category: str, count: int = 1) -> None:
+    def log(self, category: str, count: int = 1) -> int:
         assert category is not None, "category cannot be None"
         assert count is not None, "count cannot be None"
         self._log[category] += count
-        if category in self._error_cats:
-            self._error_status = True
-        return None
+        return self._log[category]
 
     def get_long_cat(self, category: str) -> str:
+        """
+        Get the long category name including the name of the EventCounter
+        """
         assert category is not None, "param 'category' cannot be None"
-        return f"{self.name}: {category}"
+        return f"{self.name}{self._separator}{category}"
 
-    def _get_str(self, category: str) -> str:
+    def _get_str(self, category: str, col_width: int = 40) -> str:
         assert category is not None, "category cannot be None"
-        return self._format_int(category)
+        return self._format_spec.format(
+            category=category,
+            col_width=col_width,
+            separator=self._separator,
+            value=self.get(category),
+        )
 
+    # TODO: remove later
+    @deprecated(version="0.4.0", reason="use get() instead")
     def get_value(self, category: str) -> int:
         assert category is not None, "param 'category' cannot be None"
-        try:
-            return self._log[category]
-        except Exception as err:
-            error(f"invalid category: {category}")
-            debug(f"{err}")
-            return 0
+        return self._log[category]
 
+    def get(self, category: str) -> int:
+        """ "
+        Get the value of a category
+        """
+        assert category is not None, "param 'category' cannot be None"
+        return self._log[category]
+
+    # TODO: remove later
+    @deprecated(version="0.4.0", reason="use values() property instead")
     def get_values(self) -> dict[str, int]:
         return self._log
 
-    def sum(self, categories: list[str]) -> int:
+    @property
+    def values(self) -> dict[str, int]:
+        return self._log.copy()
+
+    @property
+    def error_values(self) -> dict[str, int]:
+        """
+        Get the values of the error categories"""
+        return {key: self._log[key] for key in self._log.keys() & self._errors}
+
+    def sum(self, categories: Iterable[str]) -> int:
+        """
+        Sum the values of the categories
+        """
         ret = 0
         for cat in categories:
-            ret += self.get_value(cat)
+            ret += self.get(cat)
         return ret
 
+    # TODO: remove later
+    @deprecated(version="0.4.0", reason="use categories() property instead")
     def get_categories(self) -> list[str]:
         return list(self._log.keys())
 
+    @property
+    def categories(self) -> list[str]:
+        return sorted(self._log.keys())
+
+    @property
+    def errors(self) -> list[str]:
+        return sorted(self._errors)
+
+    # TODO: remove later
+    @deprecated(version="0.4.0", reason="use error_status() property instead")
     def get_error_status(self) -> bool:
-        return self._error_status
+        return self.sum(self._errors) > 0
+
+    @property
+    def error_status(self) -> bool:
+        return self.sum(self._errors) > 0
 
     def merge(self, B: "EventCounter") -> bool:
         """Merge two EventCounter instances together"""
-        assert isinstance(
-            B, EventCounter
-        ), f"input is not type of 'EventCounter' but: {type(B)}"
+        assert isinstance(B, EventCounter), (
+            f"input is not type of 'EventCounter' but: {type(B)}"
+        )
 
         try:
-            if not isinstance(B, EventCounter):
-                error(f"input is not type of 'EventCounter' but: {type(B)}")
-                return False
-            for cat in B.get_categories():
-                value: int = B.get_value(cat)
+            for cat in B.categories:
+                value: int = B.get(cat)
                 self.log(cat, value)
                 if self._totals is not None:
-                    self.log(f"{self._totals}: {cat}", value)
-                self._error_status = self._error_status or B.get_error_status()
+                    # self.log(f"{self._totals}: {cat}", value)
+                    self.log(self._totals, value)
             return True
         except Exception as err:
             error(f"{err}")
@@ -151,59 +161,76 @@ class EventCounter:
 
     def merge_child(self, B: "EventCounter") -> bool:
         """Merge two EventCounter instances together"""
-        assert isinstance(
-            B, EventCounter
-        ), f"input is not type of 'EventCounter' but: {type(B)}"
+        assert isinstance(B, EventCounter), (
+            f"input is not type of 'EventCounter' but: {type(B)}"
+        )
 
         try:
-            for cat in B.get_categories():
-                value: int = B.get_value(cat)
+            for cat in B.categories:
+                value: int = B.get(cat)
                 self.log(B.get_long_cat(cat), value)
                 if self._totals is not None:
                     self.log(f"{self._totals}: {cat}", value)
-            self._error_status = self._error_status or B.get_error_status()
+            # self._error_status = self._error_status or B.get_error_status()
             return True
         except Exception as err:
             error(f"{err}")
         return False
 
     def get_header(self) -> str:
-        return f"{self.name}" + (": ERROR occurred" if self.get_error_status() else "")
+        return f"{self.name}" + (
+            f"{self._separator}ERROR occurred" if self.error_status else ""
+        )
 
-    def _calc_col_width(self) -> None:
+    @property
+    def header(self) -> str:
+        return f"{self.name}" + (
+            f"{self._separator}ERROR occurred" if self.error_status else ""
+        )
+
+    @property
+    def col_width(self) -> int:
         """
-        Set category column widht based on the longest column
+        Set category column width based on the longest column
         """
-        longest: int = 0
-        for cat in self._log.keys():
-            longest = max(longest, len(cat))
-        self._col_width = longest + 3
+        return len(max(self._log.keys(), key=len)) + 3
 
     def print(self, do_print: bool = True, clean: bool = False) -> Optional[str]:
         try:
-            self._calc_col_width()
+            width: int = self.col_width
             if do_print:
                 message(self.get_header())
                 for cat in sorted(self._log):
-                    if clean and self.get_value(cat) == 0:
+                    if clean and self.get(cat) == 0:
                         continue
-                    message(self._get_str(cat))
+                    message(self._get_str(cat, width))
                 return None
             else:
                 ret = self.get_header()
                 for cat in sorted(self._log):
                     if clean and self.get_value(cat) == 0:
                         continue
-                    ret += f"\n{self._get_str(cat)}"
+                    ret += f"\n{self._get_str(cat, width)}"
                 return ret
         except Exception as err:
             error(f"{err}")
         return None
 
+    @deprecated(version="0.4.0", reason="use gather() instead")
     async def gather_stats(
         self, tasks: list[Task], merge_child: bool = True, cancel: bool = True
     ) -> None:
-        """Wrapper to gather results from tasks and return the stats and the LAST exception"""
+        """
+        Wrapper to gather results from tasks and return the stats and the LAST exception
+        """
+        await self.gather(tasks, merge_child, cancel)
+
+    async def gather(
+        self, tasks: list[Task], merge_child: bool = True, cancel: bool = True
+    ) -> None:
+        """
+        Wrapper to gather results from tasks and return the stats and the LAST exception
+        """
         if cancel:
             for task in tasks:
                 task.cancel()

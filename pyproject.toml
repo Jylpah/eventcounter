@@ -1,6 +1,6 @@
 [project]
 name = "eventcounter"
-version = "0.3.0"
+version = "0.4.0"
 authors = [{ name = "Jylpah", email = "jylpah@gmail.com" }]
 description = "Utility to count events and merge event counts from other EventCounters"
 readme = "README.md"
@@ -13,11 +13,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 
-dependencies = []
+dependencies = ["multilevellogger"]
 
 [project.optional-dependencies]
 dev = [
     "build>=0.10",
+    "Deprecated",
     "hatchling>=1.22.4",
     "mypy>=1.8",
     "pip-chill>=1.0",
@@ -26,6 +27,7 @@ dev = [
     "pytest-datafiles>=3.0",
     "pytest-cov>=4.1",
     "pytest-timeout>=2.2",
+    "types-Deprecated",
     "typer>=0.9.0",
     "ruff>=0.1.9",
 ]
@@ -49,6 +51,7 @@ packages = ["src/eventcounter"]
 exclude = ['tmp']
 mypy_path = ['src', 'demos', 'tests']
 
+
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py", "demos/**/*.py"]
 indent-width = 4
@@ -56,11 +59,18 @@ extend-include = ["*.ipynb"]
 extend-exclude = [".venv", ".vscode"]
 lint.fixable = ["ALL"]
 
+
 [tool.pytest.ini_options]
 minversion = "7.4"
 addopts = ["-v", "--cov=src"]
 testpaths = ["tests", "demos"]
-pythonpath = "src"             # avoid import path append in test files
+pythonpath = "src"
+asyncio_default_fixture_loop_scope = "function" # avoid import path append in test files
+
 
 [tool.pyright]
 reportGeneralTypeIssues = false
+reportInvalidStringEscapeSequence = false
+typeCheckingMode = "off"
+include = ["src", "tests"]
+extraPaths = ["src"]
