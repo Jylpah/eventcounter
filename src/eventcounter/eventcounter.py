@@ -228,7 +228,7 @@ class EventCounter:
         await self.gather(tasks, merge_child, cancel)
 
     async def gather(
-        self, tasks: list[Task], merge_child: bool = True, cancel: bool = True
+        self, tasks: list[Task], merge_child: bool = False, cancel: bool = False
     ) -> None:
         """
         Wrapper to gather results from tasks and return the stats and the LAST exception
