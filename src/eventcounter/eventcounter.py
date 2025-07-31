@@ -195,6 +195,8 @@ class EventCounter:
         """
         Set category column width based on the longest column
         """
+        if len(self._log) == 0:
+            return 10
         return len(max(self._log.keys(), key=len)) + 3
 
     def print(self, do_print: bool = True, clean: bool = False) -> Optional[str]:
